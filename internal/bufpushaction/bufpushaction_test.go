@@ -159,7 +159,7 @@ func TestCommand(t *testing.T) {
 			provider: fakeRegistryProvider{
 				deleteRepositoryTrackByNameErr: rpc.NewNotFoundError("an error"),
 			},
-			errMsg: `"buf.build/foo/bar" does not exist`,
+			errMsg: `"buf.build/foo/bar:non-main" does not exist`,
 		})
 
 		// Fails when DeleteRepositoryTrackByName returns a non-NotFound error.

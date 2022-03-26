@@ -49,10 +49,6 @@ func deleteTrack(ctx context.Context, container appflag.Container, eventName str
 	if config.ModuleIdentity == nil {
 		return errors.New("module identity not found in config")
 	}
-	moduleReference, err := bufmoduleref.ModuleReferenceForString(config.ModuleIdentity.IdentityString())
-	if err != nil {
-		return err
-	}
 	track := container.Env(trackInput)
 	if track == "" {
 		return fmt.Errorf("track not provided")
@@ -66,6 +62,15 @@ func deleteTrack(ctx context.Context, container appflag.Container, eventName str
 	if track == "main" {
 		writeNotice(container.Stdout(), "Skipping because the main track can not be deleted from BSR")
 		return nil
+	}
+	moduleReference, err := bufmoduleref.NewModuleReference(
+		config.ModuleIdentity.Remote(),
+		config.ModuleIdentity.Owner(),
+		config.ModuleIdentity.Repository(),
+		track,
+	)
+	if err != nil {
+		return err
 	}
 	repositoryTrackService, err := registryProvider.NewRepositoryTrackService(ctx, moduleReference.Remote())
 	if err != nil {

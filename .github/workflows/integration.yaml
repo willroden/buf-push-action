@@ -9,12 +9,21 @@ jobs:
     steps:
       - name: checkout
         uses: actions/checkout@v2
+      - id: track-name
+        shell: bash
+        run: |
+          TRACK_NAME="$(
+            echo "{{ github.ref_name }}-{{ runner.os }}" | 
+              sed 's/[^a-zA-Z0-9]/-/g' | 
+              tr '[:upper:]' '[:lower:]'
+          )"
+          echo "::set-output name=track-name::$TRACK_NAME"
       - uses: ./
         id: buf-push
         with:
           buf_token: ${{ secrets.BUF_TOKEN }}
           input: ./testing/proto
-          track: main
+          track: ${{ steps.track-name.outputs.track-name }}
       - name: post commit status to github
         env:
           COMMIT: ${{ steps.buf-push.outputs.commit }}

@@ -18,4 +18,5 @@ package example.v1;
 
 message Example {
   string example = 1;
+  string exampletwo = 2;
 }

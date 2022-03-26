@@ -12,9 +12,9 @@ jobs:
       - uses: ./
         id: buf-push
         with:
-          buf_token: ${{ secrets.BUFBOTPUBLIC_TOKEN }}
+          buf_token: ${{ secrets.BUF_TOKEN }}
           input: ./testing/proto
-          track: testing
+          track: main
       - name: post commit status to github
         env:
           COMMIT: ${{ steps.buf-push.outputs.commit }}

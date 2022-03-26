@@ -73,10 +73,12 @@ func TestCommand(t *testing.T) {
 			githubRefTypeKey:   githubRefTypeBranch,
 		}
 
+		// happy path
 		runCmdTest(t, cmdTest{
 			env: envDeleteBranch,
 		})
 
+		// Fails when INPUT_BUF_TOKEN is not set. This should never happen because it is a required input.
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envDeleteBranch, map[string]string{
 				bufTokenInput: "",
@@ -84,6 +86,7 @@ func TestCommand(t *testing.T) {
 			errMsg: "a buf authentication token was not provided",
 		})
 
+		// Fails when INPUT_INPUT is not set. This should never happen because it is a required input.
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envDeleteBranch, map[string]string{
 				inputInput: "path/does/not/exist",
@@ -91,6 +94,7 @@ func TestCommand(t *testing.T) {
 			errMsg: "path/does/not/exist: does not exist",
 		})
 
+		// Fails when INPUT_INPUT points to a path with no buf.yaml.
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envDeleteBranch, map[string]string{
 				inputInput: t.TempDir(),
@@ -98,6 +102,7 @@ func TestCommand(t *testing.T) {
 			errMsg: "module identity not found in config",
 		})
 
+		// Fails when INPUT_INPUT points to a path with an invalid buf.yaml.
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envDeleteBranch, map[string]string{
 				inputInput: writeConfigFile(t, "invalid config"),
@@ -105,6 +110,7 @@ func TestCommand(t *testing.T) {
 			errMsg: "could not unmarshal as YAML",
 		})
 
+		// Fails when INPUT_INPUT points to a path with a buf.yaml with an invalid module name.
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envDeleteBranch, map[string]string{
 				inputInput: writeConfigFile(t, v1Config("not-a-module")),
@@ -112,6 +118,7 @@ func TestCommand(t *testing.T) {
 			errMsg: `module identity "not-a-module" is invalid: must be in the form remote/owner/repository`,
 		})
 
+		// Fails when INPUT_TRACK is not set. This should never happen because it is a required input.
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envDeleteBranch, map[string]string{
 				trackInput: "",
@@ -119,6 +126,7 @@ func TestCommand(t *testing.T) {
 			errMsg: "track not provided",
 		})
 
+		// Fails when INPUT_DEFAULT_BRANCH is not set. This should never happen because it has a default value.
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envDeleteBranch, map[string]string{
 				defaultBranchInput: "",
@@ -126,6 +134,7 @@ func TestCommand(t *testing.T) {
 			errMsg: "default_branch not provided",
 		})
 
+		// Skips when INPUT_TRACK is main.
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envDeleteBranch, map[string]string{
 				trackInput: testMainTrack,
@@ -135,6 +144,7 @@ func TestCommand(t *testing.T) {
 			},
 		})
 
+		// Fails when NewRepositoryTrackService returns an error.
 		runCmdTest(t, cmdTest{
 			env: envDeleteBranch,
 			provider: fakeRegistryProvider{
@@ -143,14 +153,7 @@ func TestCommand(t *testing.T) {
 			errMsg: assert.AnError.Error(),
 		})
 
-		runCmdTest(t, cmdTest{
-			env: envDeleteBranch,
-			provider: fakeRegistryProvider{
-				deleteRepositoryTrackByNameErr: assert.AnError,
-			},
-			errMsg: assert.AnError.Error(),
-		})
-
+		// Fails when DeleteRepositoryTrackByName returns a NotFound error.
 		runCmdTest(t, cmdTest{
 			env: envDeleteBranch,
 			provider: fakeRegistryProvider{
@@ -158,8 +161,16 @@ func TestCommand(t *testing.T) {
 			},
 			errMsg: `"buf.build/foo/bar" does not exist`,
 		})
-	})
 
+		// Fails when DeleteRepositoryTrackByName returns a non-NotFound error.
+		runCmdTest(t, cmdTest{
+			env: envDeleteBranch,
+			provider: fakeRegistryProvider{
+				deleteRepositoryTrackByNameErr: assert.AnError,
+			},
+			errMsg: assert.AnError.Error(),
+		})
+	})
 	t.Run("push branch", func(t *testing.T) {
 		envPushBranch := map[string]string{
 			githubEventNameKey: githubEventTypePush,
@@ -169,6 +180,7 @@ func TestCommand(t *testing.T) {
 			inputInput: "./testdata/success",
 		}
 
+		// happy path
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envPushBranch, envInputSuccess),
 			outputs: map[string]string{
@@ -177,6 +189,7 @@ func TestCommand(t *testing.T) {
 			},
 		})
 
+		// Fails when INPUT_INPUT points to a non-existent path
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envPushBranch, map[string]string{
 				inputInput: "path/does/not/exist",
@@ -184,11 +197,13 @@ func TestCommand(t *testing.T) {
 			errMsg: "path/does/not/exist: does not exist",
 		})
 
+		// Fails when INPUT_INPUT points to a path with a buf.yaml but no proto files
 		runCmdTest(t, cmdTest{
 			env:    envPushBranch,
 			errMsg: "module has no files",
 		})
 
+		// Fails when INPUT_TRACK is not set. GitHub Actions shouldn't allow this to happen because it is a required input.
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envPushBranch, envInputSuccess, map[string]string{
 				trackInput: "",
@@ -196,6 +211,7 @@ func TestCommand(t *testing.T) {
 			errMsg: "track not provided",
 		})
 
+		// Fails when INPUT_DEFAULT_BRANCH is not set. GitHub Actions shouldn't allow this to happen because it has a default value.
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envPushBranch, envInputSuccess, map[string]string{
 				defaultBranchInput: "",
@@ -203,6 +219,7 @@ func TestCommand(t *testing.T) {
 			errMsg: "default_branch not provided",
 		})
 
+		// Fails when INPUT_GITHUB_TOKEN is not set. GitHub Actions shouldn't allow this to happen because it has a default value.
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envPushBranch, envInputSuccess, map[string]string{
 				githubTokenInput: "",
@@ -210,6 +227,7 @@ func TestCommand(t *testing.T) {
 			errMsg: "a github authentication token was not provided",
 		})
 
+		// Fails when GITHUB_REPOSITORY is not set. GitHub Actions should always set this variable.
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envPushBranch, envInputSuccess, map[string]string{
 				githubRepositoryKey: "",
@@ -217,6 +235,8 @@ func TestCommand(t *testing.T) {
 			errMsg: "a github repository was not provided",
 		})
 
+		// Fails when GITHUB_REPOSITORY is not in the owner/repo format. This should never happen because GitHub Actions should
+		// always set this variable as owner/repo.
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envPushBranch, envInputSuccess, map[string]string{
 				githubRepositoryKey: "no-slash",
@@ -224,6 +244,7 @@ func TestCommand(t *testing.T) {
 			errMsg: "a github repository was not provided in the format owner/repo",
 		})
 
+		// Fails when pushing to main and INPUT_DEFAULT_BRANCH is non-main.
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envPushBranch, envInputSuccess, map[string]string{
 				defaultBranchInput: testNonMainTrack,
@@ -233,6 +254,7 @@ func TestCommand(t *testing.T) {
 			errMsg: "cannot push to main track from a non-default branch",
 		})
 
+		// Fails when NewRepositoryCommitService returns an error.
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envPushBranch, envInputSuccess),
 			provider: fakeRegistryProvider{
@@ -241,6 +263,7 @@ func TestCommand(t *testing.T) {
 			errMsg: assert.AnError.Error(),
 		})
 
+		// Fails when GetRepositoryCommitByReference returns an error.
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envPushBranch, envInputSuccess),
 			provider: fakeRegistryProvider{
@@ -249,6 +272,52 @@ func TestCommand(t *testing.T) {
 			errMsg: assert.AnError.Error(),
 		})
 
+		// Succeeds after GetRepositoryCommitByReference returns a NotFound error.
+		runCmdTest(t, cmdTest{
+			env: buildEnvMap(envPushBranch, envInputSuccess),
+			provider: fakeRegistryProvider{
+				getRepositoryCommitByReferenceErr: rpc.NewNotFoundError("not found"),
+			},
+			outputs: map[string]string{
+				commitOutputID:    testBsrCommit,
+				commitURLOutputID: fmt.Sprintf("https://%s/tree/%s", testModuleName, testBsrCommit),
+			},
+		})
+
+		// Succeeds after GetRepositoryCommitByReference returns a FailedPrecondition error.
+		runCmdTest(t, cmdTest{
+			env: buildEnvMap(envPushBranch, envInputSuccess),
+			provider: fakeRegistryProvider{
+				getRepositoryCommitByReferenceErr: rpc.NewFailedPreconditionError("failed precondition"),
+			},
+			outputs: map[string]string{
+				commitOutputID:    testBsrCommit,
+				commitURLOutputID: fmt.Sprintf("https://%s/tree/%s", testModuleName, testBsrCommit),
+			},
+		})
+
+		// Fails when GITHUB_API_URL is set to an unparsable URL. This should never happen because GitHub Actions should always
+		// set this variable to a valid URL.
+		runCmdTest(t, cmdTest{
+			env: buildEnvMap(envPushBranch, envInputSuccess, map[string]string{
+				githubAPIURLKey: ":api.github.com",
+			}),
+			errMsg: `parse ":api.github.com": missing protocol scheme`,
+		})
+
+		// Uses default url (https://api.github.com) when GITHUB_API_URL is not set. This should never happen because
+		// GitHub Actions should always set this variable.
+		runCmdTest(t, cmdTest{
+			env: buildEnvMap(envPushBranch, envInputSuccess, map[string]string{
+				githubAPIURLKey: "",
+			}),
+			outputs: map[string]string{
+				commitOutputID:    testBsrCommit,
+				commitURLOutputID: fmt.Sprintf("https://%s/tree/%s", testModuleName, testBsrCommit),
+			},
+		})
+
+		// The track tip is tagged with non-git-commit tags.
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envPushBranch, envInputSuccess),
 			provider: fakeRegistryProvider{
@@ -260,6 +329,7 @@ func TestCommand(t *testing.T) {
 			},
 		})
 
+		// Fails when GITHUB_SHA is not set. This should never happen because GitHub Actions should always set this variable.
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envPushBranch, envInputSuccess, map[string]string{
 				githubSHAKey: "",
@@ -267,6 +337,7 @@ func TestCommand(t *testing.T) {
 			errMsg: "current git commit not found in environment",
 		})
 
+		// Succeeds after githubClient.CompareCommits returns a NotFound error.
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envPushBranch, envInputSuccess),
 			githubClient: fakeGithubClient{
@@ -284,6 +355,7 @@ func TestCommand(t *testing.T) {
 			},
 		})
 
+		// Fails when githubClient.CompareCommits returns a non-NotFound error.
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envPushBranch, envInputSuccess),
 			githubClient: fakeGithubClient{
@@ -298,6 +370,7 @@ func TestCommand(t *testing.T) {
 			errMsg: assert.AnError.Error(),
 		})
 
+		// Skips when githubClient.CompareCommits returns "identical"
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envPushBranch, envInputSuccess),
 			githubClient: fakeGithubClient{
@@ -314,6 +387,7 @@ func TestCommand(t *testing.T) {
 			},
 		})
 
+		// Skips when githubClient.CompareCommits returns "behind"
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envPushBranch, envInputSuccess),
 			githubClient: fakeGithubClient{
@@ -330,6 +404,7 @@ func TestCommand(t *testing.T) {
 			},
 		})
 
+		// Pushes with a notice message when githubClient.CompareCommits returns "diverged"
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envPushBranch, envInputSuccess),
 			githubClient: fakeGithubClient{
@@ -350,6 +425,8 @@ func TestCommand(t *testing.T) {
 			},
 		})
 
+		// Fails when githubClient.CompareCommits returns an unexpected status. This should never happen
+		// because the GitHub API only returns "ahead", "behind", "identical" and "diverged".
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envPushBranch, envInputSuccess),
 			githubClient: fakeGithubClient{
@@ -364,6 +441,7 @@ func TestCommand(t *testing.T) {
 			errMsg: "unexpected status: unknown(0)",
 		})
 
+		// Fails when NewPushService returns an error.
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envPushBranch, envInputSuccess),
 			provider: fakeRegistryProvider{
@@ -372,14 +450,7 @@ func TestCommand(t *testing.T) {
 			errMsg: assert.AnError.Error(),
 		})
 
-		runCmdTest(t, cmdTest{
-			env: buildEnvMap(envPushBranch, envInputSuccess),
-			provider: fakeRegistryProvider{
-				pushErr: rpc.NewNotFoundError("already exists"),
-			},
-			errMsg: "already exists",
-		})
-
+		// Succeeds when Push returns an AlreadyExists error.
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envPushBranch, envInputSuccess),
 			provider: fakeRegistryProvider{
@@ -391,6 +462,27 @@ func TestCommand(t *testing.T) {
 			},
 		})
 
+		// Fails when Push returns an AlreadyExists error after GetRepositoryCommitByReference returns a
+		// FailedPrecondition error.
+		runCmdTest(t, cmdTest{
+			env: buildEnvMap(envPushBranch, envInputSuccess),
+			provider: fakeRegistryProvider{
+				getRepositoryCommitByReferenceErr: rpc.NewFailedPreconditionError("failed precondition"),
+				pushErr:                           rpc.NewAlreadyExistsError("already exists"),
+			},
+			errMsg: "already exists",
+		})
+
+		// Fails when Push returns a non-AlreadyExists error.
+		runCmdTest(t, cmdTest{
+			env: buildEnvMap(envPushBranch, envInputSuccess),
+			provider: fakeRegistryProvider{
+				pushErr: rpc.NewNotFoundError("not found"),
+			},
+			errMsg: "not found",
+		})
+
+		// Fails when NewRepositoryService returns an error.
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envPushBranch, envInputSuccess),
 			provider: fakeRegistryProvider{
@@ -400,6 +492,7 @@ func TestCommand(t *testing.T) {
 			errMsg: assert.AnError.Error(),
 		})
 
+		// Fails when GetRepositoryByFullName returns a NotFound error after Push returns an AlreadyExists error.
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envPushBranch, envInputSuccess),
 			provider: fakeRegistryProvider{
@@ -409,6 +502,7 @@ func TestCommand(t *testing.T) {
 			errMsg: `a repository named "buf.build/foo/bar" does not exist`,
 		})
 
+		// Fails when GetRepositoryByFullName returns a non-NotFound error after Push returns an AlreadyExists error.
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envPushBranch, envInputSuccess),
 			provider: fakeRegistryProvider{
@@ -418,6 +512,7 @@ func TestCommand(t *testing.T) {
 			errMsg: assert.AnError.Error(),
 		})
 
+		// Fails when NewRepositoryTagService returns an error.
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envPushBranch, envInputSuccess),
 			provider: fakeRegistryProvider{
@@ -427,6 +522,7 @@ func TestCommand(t *testing.T) {
 			errMsg: assert.AnError.Error(),
 		})
 
+		// Fails when CreateRepositoryTag returns a NotFound error.
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envPushBranch, envInputSuccess),
 			provider: fakeRegistryProvider{
@@ -436,6 +532,7 @@ func TestCommand(t *testing.T) {
 			errMsg: "buf.build/foo/bar:01234567890123456789012345678901 does not exist",
 		})
 
+		// Fails when CreateRepositoryTag returns an AlreadyExists error.
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envPushBranch, envInputSuccess),
 			provider: fakeRegistryProvider{
@@ -445,6 +542,7 @@ func TestCommand(t *testing.T) {
 			errMsg: "buf.build/foo/bar:beefcafebeefcafebeefcafebeefcafebeefcafe already exists with different content",
 		})
 
+		// Fails when CreateRepositoryTag returns an error.
 		runCmdTest(t, cmdTest{
 			env: buildEnvMap(envPushBranch, envInputSuccess),
 			provider: fakeRegistryProvider{
@@ -517,6 +615,7 @@ func runCmdTest(t *testing.T, test cmdTest) {
 		githubRepositoryKey: "github-owner/github-repo",
 		githubRefNameKey:    testMainTrack,
 		githubSHAKey:        testGitCommit2,
+		githubAPIURLKey:     "https://api.github.com",
 	}
 	if test.provider.headTags == nil {
 		test.provider.headTags = []string{testGitCommit1}

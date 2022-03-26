@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"net/url"
 	"strings"
 
@@ -70,22 +69,38 @@ type Client struct {
 
 // NewClient returns a new github client.
 // baseURL is optional and defaults to https://api.github.com/.
-func NewClient(ctx context.Context, githubToken, userAgent, baseURL, repository string) (*Client, error) {
-	goGithubClient, err := newGoGithubClient(ctx, githubToken, userAgent, baseURL)
-	if err != nil {
-		return nil, err
+func NewClient(ctx context.Context, token, userAgent, owner, repository string, baseURL *url.URL) *Client {
+	goGithubClient := github.NewClient(
+		oauth2.NewClient(
+			ctx,
+			oauth2.StaticTokenSource(
+				&oauth2.Token{
+					AccessToken: token,
+				},
+			),
+		),
+	)
+
+	if baseURL != nil {
+		*goGithubClient.BaseURL = *baseURL
+		// The underlying go-github client library requires the url has a trailing slash, but the
+		// value of GITHUB_API_URL usually doesn't have one.
+		if !strings.HasSuffix(goGithubClient.BaseURL.Path, "/") {
+			goGithubClient.BaseURL.Path += "/"
+		}
 	}
-	ownerAndRepo := strings.Split(repository, "/")
-	if len(ownerAndRepo) != 2 {
-		return nil, fmt.Errorf("invalid repository: %s", repository)
-	}
+
+	goGithubClient.UserAgent = userAgent
 	return &Client{
 		client: goGithubClient,
-		owner:  ownerAndRepo[0],
-		repo:   ownerAndRepo[1],
-	}, nil
+		owner:  owner,
+		repo:   repository,
+	}
 }
 
+// CompareCommits compares a range of commits with each other.
+//
+// GitHub API docs: https://docs.github.com/en/rest/reference/commits#compare-two-commits
 func (c *Client) CompareCommits(ctx context.Context, base string, head string) (CompareCommitsStatus, error) {
 	comp, _, err := c.client.Repositories.CompareCommits(ctx, c.owner, c.repo, base, head, nil)
 	if err != nil {
@@ -98,44 +113,14 @@ func (c *Client) CompareCommits(ctx context.Context, base string, head string) (
 	return status, nil
 }
 
-// IsNotFoundError returns true if the error is a *github.ErrorResponse with a 404 status code.
-func IsNotFoundError(err error) bool {
+// IsResponseError returns true if the error is a *github.ErrorResponse with the given status code.
+func IsResponseError(statusCode int, err error) bool {
 	var errorResponse *github.ErrorResponse
 	if !errors.As(err, &errorResponse) {
 		return false
 	}
-	return errorResponse.Response.StatusCode == http.StatusNotFound
-}
-
-func newGoGithubClient(
-	ctx context.Context,
-	token string,
-	userAgent string,
-	baseURL string,
-) (*github.Client, error) {
-	if token == "" {
-		return nil, fmt.Errorf("github token is empty")
+	if errorResponse.Response == nil {
+		return false
 	}
-	client := github.NewClient(
-		oauth2.NewClient(
-			ctx,
-			oauth2.StaticTokenSource(
-				&oauth2.Token{
-					AccessToken: token,
-				},
-			),
-		),
-	)
-	var err error
-	if baseURL != "" {
-		if !strings.HasSuffix(baseURL, "/") {
-			baseURL += "/"
-		}
-		client.BaseURL, err = url.Parse(baseURL)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse base url: %w", err)
-		}
-	}
-	client.UserAgent = userAgent
-	return client, nil
+	return errorResponse.Response.StatusCode == statusCode
 }

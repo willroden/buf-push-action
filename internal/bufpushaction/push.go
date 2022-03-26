@@ -19,6 +19,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/bufbuild/buf-push-action/internal/pkg/github"
@@ -85,7 +87,16 @@ func push(ctx context.Context, container appflag.Container, eventName string, re
 		track,
 	)
 	if err != nil {
-		if rpc.GetErrorCode(err) != rpc.ErrorCodeNotFound {
+		switch rpc.GetErrorCode(err) {
+		case rpc.ErrorCodeNotFound:
+			// The track doesn't exist yet. Go ahead and push to create it.
+		case rpc.ErrorCodeFailedPrecondition:
+			// This could mean that the track exists but has no commits.
+			// It could also mean that some other precondition is not met.
+			// In either case we should go ahead and push. If the track exists but has no commits
+			// then the push will add the first commit to the track. If some other precondition is not
+			// met then the push will fail, and we can handle that error.
+		default:
 			return err
 		}
 		repositoryCommit = nil
@@ -116,7 +127,7 @@ func push(ctx context.Context, container appflag.Container, eventName string, re
 		var status github.CompareCommitsStatus
 		status, err = ghClient.CompareCommits(ctx, tag, currentGitCommit)
 		if err != nil {
-			if github.IsNotFoundError(err) {
+			if github.IsResponseError(http.StatusNotFound, err) {
 				continue
 			}
 			return err
@@ -220,6 +231,14 @@ func tagExistingCommit(
 
 // getGithubClient returns the github client from the context if one is present or creates a client.
 func getGithubClient(ctx context.Context, container appflag.Container) (githubClient, error) {
+	var githubAPIURL *url.URL
+	if urlString := container.Env(githubAPIURLKey); urlString != "" {
+		var err error
+		githubAPIURL, err = url.Parse(urlString)
+		if err != nil {
+			return nil, err
+		}
+	}
 	githubToken := container.Env(githubTokenInput)
 	if githubToken == "" {
 		return nil, errors.New("a github authentication token was not provided")
@@ -232,12 +251,8 @@ func getGithubClient(ctx context.Context, container appflag.Container) (githubCl
 	if len(repoParts) != 2 {
 		return nil, errors.New("a github repository was not provided in the format owner/repo")
 	}
-	var err error
 	var client githubClient
-	client, err = github.NewClient(ctx, githubToken, "buf-push-action", "", githubRepository)
-	if err != nil {
-		return nil, err
-	}
+	client = github.NewClient(ctx, githubToken, "buf-push-action", repoParts[0], repoParts[1], githubAPIURL)
 	if value, ok := ctx.Value(githubClientContextKey).(githubClient); ok {
 		client = value
 	}

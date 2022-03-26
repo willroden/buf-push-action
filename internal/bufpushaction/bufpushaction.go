@@ -39,6 +39,7 @@ const (
 	githubRefTypeKey    = "GITHUB_REF_TYPE"
 	githubSHAKey        = "GITHUB_SHA"
 	githubEventNameKey  = "GITHUB_EVENT_NAME"
+	githubAPIURLKey     = "GITHUB_API_URL"
 	bufTokenInput       = "INPUT_BUF_TOKEN"
 	inputInput          = "INPUT_INPUT"
 	defaultBranchInput  = "INPUT_DEFAULT_BRANCH"

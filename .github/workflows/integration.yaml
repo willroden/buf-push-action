@@ -13,7 +13,7 @@ jobs:
         shell: bash
         run: |
           TRACK_NAME="$(
-            echo "{{ github.ref_name }}-{{ runner.os }}" | 
+            echo "${{ github.ref_name }}-${{ runner.os }}" | 
               sed 's/[^a-zA-Z0-9]/-/g' | 
               tr '[:upper:]' '[:lower:]'
           )"

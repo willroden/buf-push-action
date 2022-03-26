@@ -12,11 +12,24 @@ inputs:
     description: The Input path.
     default: '.'
     required: false
+  default_branch:
+    description: The git branch that gets pushed to the main track on BSR.
+    default: main
+    required: false
+  track:
+    description: The track to push to.
+    default: ${{ github.ref_name }}
+    required: false
+  github_token:
+    description: The Github authentication token.
+    required: false
+    default: ${{ github.token }}
+outputs:
+  commit:
+    description: The commit pushed to the Buf Schema Registry.
+  commit_url:
+    description: The URL to view commit on the Buf Schema Registry.
 runs:
-  using: composite
-  steps:
-    - name: push
-      shell: bash
-      env:
-        BUF_TOKEN: ${{ inputs.buf_token }}
-      run: $GITHUB_ACTION_PATH/push.bash ${{ inputs.input }}
+  using: docker
+  #  TODO: see https://github.com/actions/jekyll-build-pages for example workflow of publishing and image instead of building from Dockerfile
+  image: Dockerfile

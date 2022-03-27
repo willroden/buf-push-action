@@ -31,5 +31,4 @@ outputs:
     description: The URL to view commit on the Buf Schema Registry.
 runs:
   using: docker
-  #  TODO: see https://github.com/actions/jekyll-build-pages for example workflow of publishing and image instead of building from Dockerfile
-  image: Dockerfile
+  image: 'docker://ghcr.io/willroden/buf-push-action:main'

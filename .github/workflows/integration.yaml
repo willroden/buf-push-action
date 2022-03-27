@@ -1,8 +1,11 @@
 name: integration
-on: [push, workflow_dispatch, delete]
+on: [ push, workflow_dispatch, delete ]
 jobs:
   action-test:
-    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: read
       statuses: write
@@ -33,6 +36,7 @@ jobs:
           COMMIT: ${{ steps.buf-push.outputs.commit }}
           COMMIT_URL: ${{ steps.buf-push.outputs.commit_url }}
           GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
           gh api repos/{owner}/{repo}/statuses/${GITHUB_SHA} \
             -F "state=success" \

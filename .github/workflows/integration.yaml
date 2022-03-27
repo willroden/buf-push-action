@@ -12,8 +12,12 @@ jobs:
       - id: track-name
         shell: bash
         run: |
+          REF="${{ github.ref_name }}"
+          if [[ "${{ github.event_name }}" == "delete" ]]; then
+            REF="${{ github.event.ref }}"
+          fi
           TRACK_NAME="$(
-            echo "${{ github.ref }}-${{ runner.os }}" | 
+            echo "$REF-${{ runner.os }}" | 
               sed 's/[^a-zA-Z0-9]/-/g' | 
               tr '[:upper:]' '[:lower:]'
           )"

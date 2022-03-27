@@ -18,7 +18,7 @@ inputs:
     required: false
   track:
     description: The track to push to.
-    default: ${{ github.ref_name }}
+    default: ${{ github.event_name == 'delete' && github.event.ref || github.ref_name }}
     required: false
   github_token:
     description: The Github authentication token.

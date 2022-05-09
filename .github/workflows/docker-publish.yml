@@ -29,7 +29,7 @@ jobs:
           echo "::set-output name=tags::ghcr.io/${IMAGE_NAME}:${{ github.ref_name }}"
       - name: metadata
         id: meta
-        uses: docker/metadata-action@v3
+        uses: docker/metadata-action@v4
         with:
           images: ${{ env.REGISTRY }}/${{ steps.image-name.outputs.image_name }}
 

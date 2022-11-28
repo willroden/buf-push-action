@@ -10,7 +10,7 @@ RUN go build \
     -ldflags "-s -w -extldflags '-static'" \
     ./cmd/buf-push-action
 
-FROM alpine:3.11
+FROM alpine:3.17
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /bin/buf-push-action /buf-push-action
 
